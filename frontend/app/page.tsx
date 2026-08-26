@@ -1,5 +1,6 @@
 import Header from "@/components/Header";
 import StatusCard from "@/components/StatusCard";
+import WalletStatus from "@/components/WalletStatus";
 
 export default function Home() {
   return (
@@ -14,19 +15,14 @@ export default function Home() {
             Review transactions before you sign
           </h1>
           <p className="mt-3 max-w-2xl text-sm leading-7 text-muted">
-            Web3 Guardian will help you connect a Rabby-compatible wallet,
-            analyze transaction risk with Gemini AI, and record results on a
-            Solidity smart contract. This first version is the frontend
-            foundation only.
+            Connect a Rabby-compatible wallet to get started. Gemini AI risk
+            analysis and the Solidity smart contract will be added in later
+            steps.
           </p>
         </section>
 
         <section className="grid gap-4 md:grid-cols-3">
-          <StatusCard
-            title="Wallet"
-            status="Not connected"
-            description="Wallet connection will be added in a later step. Rabby-compatible wallets will be supported."
-          />
+          <WalletStatus />
           <StatusCard
             title="AI risk analysis"
             status="Not enabled"

@@ -1,3 +1,5 @@
+import ConnectWallet from "@/components/ConnectWallet";
+
 export default function Header() {
   return (
     <header className="border-b border-border bg-card/80">
@@ -11,9 +13,7 @@ export default function Header() {
             <p className="text-xs text-muted">Transaction risk dashboard</p>
           </div>
         </div>
-        <span className="rounded-full border border-border px-3 py-1 text-xs text-muted">
-          Wallet coming soon
-        </span>
+        <ConnectWallet />
       </div>
     </header>
   );
