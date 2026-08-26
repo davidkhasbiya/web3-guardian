@@ -17,7 +17,7 @@ export function getConnectErrorMessage(error: unknown) {
   }
 
   if (err.name === "ProviderNotFoundError" || text.includes("provider not found")) {
-    return "No injected wallet found. Install Rabby or another EVM wallet, then refresh this page.";
+    return "No browser wallet found. Install or enable an EVM wallet, then refresh this page.";
   }
 
   return "Could not connect to the wallet. Please try again.";
