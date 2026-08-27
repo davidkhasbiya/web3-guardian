@@ -8,6 +8,43 @@ import {
 } from "@/lib/transactionBuilder";
 import { wagmiConfig } from "@/lib/wagmi";
 
+type RiskAssessment = {
+  riskLevel: "LOW" | "MEDIUM" | "HIGH";
+  score: number;
+  summary: string;
+  reasons: string[];
+  recommendation: string;
+};
+
+function isRiskAssessment(value: unknown): value is RiskAssessment {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return false;
+  }
+
+  const assessment = value as Partial<RiskAssessment>;
+
+  return (
+    (assessment.riskLevel === "LOW" ||
+      assessment.riskLevel === "MEDIUM" ||
+      assessment.riskLevel === "HIGH") &&
+    typeof assessment.score === "number" &&
+    Number.isFinite(assessment.score) &&
+    typeof assessment.summary === "string" &&
+    Array.isArray(assessment.reasons) &&
+    assessment.reasons.every((reason) => typeof reason === "string") &&
+    typeof assessment.recommendation === "string"
+  );
+}
+
+function getApiErrorMessage(value: unknown) {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return "Risk analysis failed. Please try again.";
+  }
+
+  const response = value as { error?: unknown };
+  return typeof response.error === "string" ? response.error : "Risk analysis failed. Please try again.";
+}
+
 export default function TransactionBuilder() {
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
@@ -20,6 +57,9 @@ export default function TransactionBuilder() {
   }>({});
   const [preview, setPreview] = useState<PreparedNativeTransfer>();
   const [hasSubmittedPreview, setHasSubmittedPreview] = useState(false);
+  const [riskAssessment, setRiskAssessment] = useState<RiskAssessment>();
+  const [riskError, setRiskError] = useState("");
+  const [isAnalyzingRisk, setIsAnalyzingRisk] = useState(false);
 
   const chainName = useMemo(() => {
     const chain = wagmiConfig.chains.find((configuredChain) => configuredChain.id === chainId);
@@ -40,6 +80,53 @@ export default function TransactionBuilder() {
 
     setErrors(validation.errors);
     setPreview(validation.preparedTransaction);
+    setRiskAssessment(undefined);
+    setRiskError("");
+  }
+
+  async function handleAnalyzeRisk() {
+    if (!preview) {
+      setRiskError("Prepare a valid transaction review before analyzing risk.");
+      return;
+    }
+
+    setIsAnalyzingRisk(true);
+    setRiskAssessment(undefined);
+    setRiskError("");
+
+    try {
+      const response = await fetch("/api/analyze", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: preview.from,
+          to: preview.to,
+          amount: preview.amountBnb,
+          asset: preview.asset,
+          network: `${preview.chainName} (${preview.chainId})`,
+        }),
+      });
+
+      const data: unknown = await response.json();
+
+      if (!response.ok) {
+        setRiskError(getApiErrorMessage(data));
+        return;
+      }
+
+      if (!isRiskAssessment(data)) {
+        setRiskError("Risk analysis returned an unexpected response.");
+        return;
+      }
+
+      setRiskAssessment(data);
+    } catch {
+      setRiskError("Risk analysis request failed. Please try again.");
+    } finally {
+      setIsAnalyzingRisk(false);
+    }
   }
 
   return (
@@ -64,6 +151,8 @@ export default function TransactionBuilder() {
               setRecipient(event.target.value);
               setPreview(undefined);
               setHasSubmittedPreview(false);
+              setRiskAssessment(undefined);
+              setRiskError("");
               setErrors((currentErrors) => ({ ...currentErrors, to: undefined }));
             }}
             placeholder="0x..."
@@ -80,6 +169,8 @@ export default function TransactionBuilder() {
               setAmountBnb(event.target.value);
               setPreview(undefined);
               setHasSubmittedPreview(false);
+              setRiskAssessment(undefined);
+              setRiskError("");
               setErrors((currentErrors) => ({ ...currentErrors, amountBnb: undefined }));
             }}
             inputMode="decimal"
@@ -121,15 +212,25 @@ export default function TransactionBuilder() {
         <div className="mt-5 rounded-lg border border-accent/30 bg-accent/5 p-4">
           <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <p className="text-sm font-medium text-accent">Transaction Review</p>
-            <p
-              className={
-                preview
-                  ? "font-mono text-sm text-accent"
-                  : "font-mono text-sm text-red-400"
-              }
-            >
-              {preview ? "Ready for security analysis" : "Invalid transaction data"}
-            </p>
+            <div className="flex flex-col gap-2 md:items-end">
+              <p
+                className={
+                  preview
+                    ? "font-mono text-sm text-accent"
+                    : "font-mono text-sm text-red-400"
+                }
+              >
+                {preview ? "Ready for security analysis" : "Invalid transaction data"}
+              </p>
+              <button
+                type="button"
+                onClick={() => void handleAnalyzeRisk()}
+                disabled={!preview || isAnalyzingRisk}
+                className="rounded-full border border-accent/40 bg-accent/10 px-4 py-2 text-sm font-medium text-accent hover:bg-accent/20 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isAnalyzingRisk ? "Analyzing..." : "Analyze Risk"}
+              </button>
+            </div>
           </div>
           <p className="mt-3 text-sm leading-6 text-muted">
             This review is only a preview. No transaction has been sent, signed, or
@@ -165,6 +266,51 @@ export default function TransactionBuilder() {
               </dd>
             </div>
           </dl>
+
+          {riskError ? <p className="mt-4 text-sm text-red-400">{riskError}</p> : null}
+
+          {riskAssessment ? (
+            <div className="mt-5 rounded-lg border border-border bg-background/60 p-4">
+              <p className="text-sm font-medium text-accent">
+                AI-assisted risk assessment
+              </p>
+              <div className="mt-4 grid gap-3 text-sm md:grid-cols-2">
+                <div>
+                  <p className="text-muted">Risk level</p>
+                  <p className="mt-1 font-mono text-foreground">
+                    {riskAssessment.riskLevel}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-muted">Risk score</p>
+                  <p className="mt-1 font-mono text-foreground">
+                    {riskAssessment.score}/100
+                  </p>
+                </div>
+              </div>
+              <p className="mt-4 text-sm leading-6 text-muted">
+                {riskAssessment.summary}
+              </p>
+              <div className="mt-4">
+                <p className="text-sm text-muted">Reasons</p>
+                <ul className="mt-2 list-disc space-y-2 pl-5 text-sm leading-6">
+                  {riskAssessment.reasons.map((reason) => (
+                    <li key={reason}>{reason}</li>
+                  ))}
+                </ul>
+              </div>
+              <div className="mt-4">
+                <p className="text-sm text-muted">Recommendation</p>
+                <p className="mt-2 text-sm leading-6">
+                  {riskAssessment.recommendation}
+                </p>
+              </div>
+              <p className="mt-4 text-xs leading-5 text-muted">
+                This is an AI-assisted assessment, not a safety guarantee. No
+                transaction signing or sending has been requested.
+              </p>
+            </div>
+          ) : null}
         </div>
       ) : null}
     </section>
