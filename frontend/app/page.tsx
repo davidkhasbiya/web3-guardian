@@ -1,5 +1,6 @@
 import Header from "@/components/Header";
 import StatusCard from "@/components/StatusCard";
+import TransactionBuilder from "@/components/TransactionBuilder";
 import WalletStatus from "@/components/WalletStatus";
 
 export default function Home() {
@@ -34,6 +35,8 @@ export default function Home() {
             description="A Foundry Solidity contract will later store or verify guardian results on-chain."
           />
         </section>
+
+        <TransactionBuilder />
       </main>
     </div>
   );
