@@ -19,6 +19,7 @@ export default function TransactionBuilder() {
     amountBnb?: string;
   }>({});
   const [preview, setPreview] = useState<PreparedNativeTransfer>();
+  const [hasSubmittedPreview, setHasSubmittedPreview] = useState(false);
 
   const chainName = useMemo(() => {
     const chain = wagmiConfig.chains.find((configuredChain) => configuredChain.id === chainId);
@@ -27,6 +28,7 @@ export default function TransactionBuilder() {
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setHasSubmittedPreview(true);
 
     const validation = prepareNativeTransfer({
       from: address,
@@ -61,6 +63,7 @@ export default function TransactionBuilder() {
             onChange={(event) => {
               setRecipient(event.target.value);
               setPreview(undefined);
+              setHasSubmittedPreview(false);
               setErrors((currentErrors) => ({ ...currentErrors, to: undefined }));
             }}
             placeholder="0x..."
@@ -76,6 +79,7 @@ export default function TransactionBuilder() {
             onChange={(event) => {
               setAmountBnb(event.target.value);
               setPreview(undefined);
+              setHasSubmittedPreview(false);
               setErrors((currentErrors) => ({ ...currentErrors, amountBnb: undefined }));
             }}
             inputMode="decimal"
@@ -113,26 +117,51 @@ export default function TransactionBuilder() {
         </div>
       </div>
 
-      {preview ? (
+      {hasSubmittedPreview ? (
         <div className="mt-5 rounded-lg border border-accent/30 bg-accent/5 p-4">
-          <p className="text-sm font-medium text-accent">Transaction Preview</p>
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <p className="text-sm font-medium text-accent">Transaction Review</p>
+            <p
+              className={
+                preview
+                  ? "font-mono text-sm text-accent"
+                  : "font-mono text-sm text-red-400"
+              }
+            >
+              {preview ? "Ready for security analysis" : "Invalid transaction data"}
+            </p>
+          </div>
+          <p className="mt-3 text-sm leading-6 text-muted">
+            This review is only a preview. No transaction has been sent, signed, or
+            submitted.
+          </p>
           <dl className="mt-4 grid gap-3 text-sm">
             <div>
               <dt className="text-muted">From address</dt>
-              <dd className="mt-1 break-all font-mono">{preview.from}</dd>
+              <dd className="mt-1 break-all font-mono">
+                {preview?.from ?? "Unavailable until valid"}
+              </dd>
             </div>
             <div>
-              <dt className="text-muted">To address</dt>
-              <dd className="mt-1 break-all font-mono">{preview.to}</dd>
+              <dt className="text-muted">Recipient address</dt>
+              <dd className="mt-1 break-all font-mono">
+                {preview?.to ?? "Enter a valid recipient"}
+              </dd>
             </div>
             <div>
               <dt className="text-muted">Amount</dt>
-              <dd className="mt-1 font-mono">{preview.amountBnb} BNB</dd>
+              <dd className="mt-1 font-mono">
+                {preview ? `${preview.amountBnb} BNB` : "Enter a valid positive amount"}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-muted">Asset</dt>
+              <dd className="mt-1 font-mono">{preview?.asset ?? "native BNB"}</dd>
             </div>
             <div>
               <dt className="text-muted">Network</dt>
               <dd className="mt-1 font-mono">
-                {preview.chainName} ({preview.chainId})
+                {preview ? `${preview.chainName} (${preview.chainId})` : chainName}
               </dd>
             </div>
           </dl>

@@ -4,6 +4,7 @@ export type PreparedNativeTransfer = {
   from: Address;
   to: Address;
   amountBnb: string;
+  asset: "native BNB";
   valueWei: bigint;
   chainId: number;
   chainName: string;
@@ -75,6 +76,7 @@ export function prepareNativeTransfer({
       from,
       to: trimmedTo as Address,
       amountBnb: trimmedAmount,
+      asset: "native BNB",
       valueWei,
       chainId,
       chainName,
