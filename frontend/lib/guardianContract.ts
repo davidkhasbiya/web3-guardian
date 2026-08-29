@@ -17,6 +17,37 @@ export const GUARDIAN_ABI = [
         ],
         outputs: [],
     },
+    {
+        type: "event",
+        name: "RiskAssessmentRecorded",
+        inputs: [
+            {
+                indexed: true,
+                name: "user",
+                type: "address",
+            },
+            {
+                indexed: true,
+                name: "transactionId",
+                type: "bytes32",
+            },
+            {
+                indexed: false,
+                name: "riskLevel",
+                type: "uint8",
+            },
+            {
+                indexed: false,
+                name: "score",
+                type: "uint8",
+            },
+            {
+                indexed: false,
+                name: "timestamp",
+                type: "uint256",
+            },
+        ],
+    },
 ] as const;
 
 export const RISK_LEVEL_TO_UINT = {

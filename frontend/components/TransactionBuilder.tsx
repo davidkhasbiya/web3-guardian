@@ -1,6 +1,6 @@
 "use client";
 
-import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { keccak256, toBytes } from "viem";
 import {
   useAccount,
@@ -19,6 +19,7 @@ import {
   GUARDIAN_CONTRACT_ADDRESS,
   RISK_LEVEL_TO_UINT,
 } from "../lib/guardianContract";
+import { saveAssessmentHistoryRecord } from "@/lib/historyStorage";
 import { wagmiConfig } from "@/lib/wagmi";
 
 type RiskAssessment = {
@@ -108,6 +109,7 @@ export default function TransactionBuilder() {
     error: writeError,
   } = useWriteContract({ config: wagmiConfig });
   const {
+    data: assessmentReceipt,
     isLoading: isConfirmingAssessment,
     isSuccess: isAssessmentConfirmed,
     isError: isConfirmationError,
@@ -117,6 +119,36 @@ export default function TransactionBuilder() {
     chainId: GUARDIAN_CHAIN_ID,
     hash: assessmentTransactionHash,
   });
+  const persistedAssessmentRef = useRef<Set<`0x${string}`>>(new Set());
+
+  useEffect(() => {
+    if (
+      !isAssessmentConfirmed ||
+      !assessmentTransactionHash ||
+      !address ||
+      !riskAssessment ||
+      !preview ||
+      persistedAssessmentRef.current.has(assessmentTransactionHash)
+    ) {
+      return;
+    }
+
+    const transactionId = getTransactionId(preview);
+
+    const saved = saveAssessmentHistoryRecord({
+      walletAddress: address,
+      transactionId,
+      riskLevel: riskAssessment.riskLevel,
+      score: riskAssessment.score,
+      transactionHash: assessmentTransactionHash,
+      timestamp: Math.floor(Date.now() / 1000),
+      blockNumber: assessmentReceipt?.blockNumber ? Number(assessmentReceipt.blockNumber) : undefined,
+    });
+
+    if (saved) {
+      persistedAssessmentRef.current.add(assessmentTransactionHash);
+    }
+  }, [address, assessmentReceipt, assessmentTransactionHash, isAssessmentConfirmed, preview, riskAssessment]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {

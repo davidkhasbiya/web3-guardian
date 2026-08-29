@@ -1,0 +1,25 @@
+import "dotenv/config";
+import cors from "cors";
+import express from "express";
+
+const app = express();
+const PORT = Number(process.env.PORT ?? 4000);
+
+app.use(
+    cors({
+        origin: process.env.FRONTEND_URL ?? "http://localhost:3000",
+    }),
+);
+
+app.use(express.json());
+
+app.get("/health", (_req, res) => {
+    res.json({
+        ok: true,
+        service: "web3-guardian-api",
+    });
+});
+
+app.listen(PORT, () => {
+    console.log(`Web3 Guardian API running on http://localhost:${PORT}`);
+});
