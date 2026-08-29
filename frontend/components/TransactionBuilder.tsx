@@ -1,11 +1,24 @@
 "use client";
 
-import { type FormEvent, useMemo, useState } from "react";
-import { useAccount, useChainId } from "wagmi";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { keccak256, toBytes } from "viem";
+import {
+  useAccount,
+  useChainId,
+  useWaitForTransactionReceipt,
+  useWriteContract,
+} from "wagmi";
+import { type Contact, formatShortAddress, getContacts } from "@/lib/contacts";
 import {
   prepareNativeTransfer,
   type PreparedNativeTransfer,
 } from "@/lib/transactionBuilder";
+import {
+  GUARDIAN_ABI,
+  GUARDIAN_CHAIN_ID,
+  GUARDIAN_CONTRACT_ADDRESS,
+  RISK_LEVEL_TO_UINT,
+} from "../lib/guardianContract";
 import { wagmiConfig } from "@/lib/wagmi";
 
 type RiskAssessment = {
@@ -45,11 +58,37 @@ function getApiErrorMessage(value: unknown) {
   return typeof response.error === "string" ? response.error : "Risk analysis failed. Please try again.";
 }
 
+function getWalletErrorMessage(error: unknown) {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  return "The assessment transaction failed. Please try again.";
+}
+
+function getTransactionId(transaction: PreparedNativeTransfer) {
+  return keccak256(
+    toBytes(
+      JSON.stringify({
+        from: transaction.from,
+        to: transaction.to,
+        amountBnb: transaction.amountBnb,
+        asset: transaction.asset,
+        valueWei: transaction.valueWei.toString(),
+        chainId: transaction.chainId,
+        chainName: transaction.chainName,
+      }),
+    ),
+  );
+}
+
 export default function TransactionBuilder() {
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
   const [recipient, setRecipient] = useState("");
   const [amountBnb, setAmountBnb] = useState("");
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [selectedContactId, setSelectedContactId] = useState("manual");
   const [errors, setErrors] = useState<{
     from?: string;
     to?: string;
@@ -60,11 +99,57 @@ export default function TransactionBuilder() {
   const [riskAssessment, setRiskAssessment] = useState<RiskAssessment>();
   const [riskError, setRiskError] = useState("");
   const [isAnalyzingRisk, setIsAnalyzingRisk] = useState(false);
+  const [recordError, setRecordError] = useState("");
+  const [assessmentTransactionHash, setAssessmentTransactionHash] = useState<`0x${string}`>();
+  const {
+    writeContract,
+    reset: resetWriteContract,
+    isPending: isRecordingAssessment,
+    error: writeError,
+  } = useWriteContract({ config: wagmiConfig });
+  const {
+    isLoading: isConfirmingAssessment,
+    isSuccess: isAssessmentConfirmed,
+    isError: isConfirmationError,
+    error: confirmationError,
+  } = useWaitForTransactionReceipt({
+    config: wagmiConfig,
+    chainId: GUARDIAN_CHAIN_ID,
+    hash: assessmentTransactionHash,
+  });
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setContacts(getContacts());
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, []);
 
   const chainName = useMemo(() => {
     const chain = wagmiConfig.chains.find((configuredChain) => configuredChain.id === chainId);
     return chain?.name ?? `Chain ID ${chainId}`;
   }, [chainId]);
+
+  function handleSelectContact(value: string) {
+    setSelectedContactId(value);
+
+    if (value === "manual") {
+      return;
+    }
+
+    const selectedContact = contacts.find((contact) => contact.id === value);
+    if (!selectedContact) {
+      return;
+    }
+
+    setRecipient(selectedContact.address);
+    setPreview(undefined);
+    setHasSubmittedPreview(false);
+    setRiskAssessment(undefined);
+    setRiskError("");
+    setErrors((currentErrors) => ({ ...currentErrors, to: undefined }));
+  }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -82,6 +167,9 @@ export default function TransactionBuilder() {
     setPreview(validation.preparedTransaction);
     setRiskAssessment(undefined);
     setRiskError("");
+    setRecordError("");
+    setAssessmentTransactionHash(undefined);
+    resetWriteContract();
   }
 
   async function handleAnalyzeRisk() {
@@ -93,6 +181,9 @@ export default function TransactionBuilder() {
     setIsAnalyzingRisk(true);
     setRiskAssessment(undefined);
     setRiskError("");
+    setRecordError("");
+    setAssessmentTransactionHash(undefined);
+    resetWriteContract();
 
     try {
       const response = await fetch("/api/analyze", {
@@ -129,6 +220,52 @@ export default function TransactionBuilder() {
     }
   }
 
+  function handleRecordAssessment() {
+    if (!riskAssessment || !preview) {
+      setRecordError("Complete a valid risk analysis before recording an assessment.");
+      return;
+    }
+
+    if (!isConnected) {
+      setRecordError("Connect your wallet before recording an assessment.");
+      return;
+    }
+
+    if (chainId !== GUARDIAN_CHAIN_ID) {
+      setRecordError("Switch your wallet to BNB Smart Chain Testnet (chain ID 97).");
+      return;
+    }
+
+    if (
+      !Number.isInteger(riskAssessment.score) ||
+      riskAssessment.score < 0 ||
+      riskAssessment.score > 100
+    ) {
+      setRecordError("The risk score must be a whole number between 0 and 100.");
+      return;
+    }
+
+    setRecordError("");
+    resetWriteContract();
+    writeContract(
+      {
+        address: GUARDIAN_CONTRACT_ADDRESS,
+        abi: GUARDIAN_ABI,
+        functionName: "recordAssessment",
+        args: [
+          getTransactionId(preview),
+          RISK_LEVEL_TO_UINT[riskAssessment.riskLevel],
+          riskAssessment.score,
+        ],
+        chainId: GUARDIAN_CHAIN_ID,
+      },
+      {
+        onSuccess: (hash) => setAssessmentTransactionHash(hash),
+        onError: (error) => setRecordError(getWalletErrorMessage(error)),
+      },
+    );
+  }
+
   return (
     <section className="mt-8 rounded-xl border border-border bg-card p-5">
       <div className="mb-5">
@@ -143,12 +280,32 @@ export default function TransactionBuilder() {
       </div>
 
       <form onSubmit={handleSubmit} className="grid gap-4 lg:grid-cols-[1fr_1fr_auto]">
+        <div className="flex flex-col gap-2 text-sm">
+          <label htmlFor="recipient-contact" className="text-muted">
+            Recipient
+          </label>
+          <select
+            id="recipient-contact"
+            value={selectedContactId}
+            onChange={(event) => handleSelectContact(event.target.value)}
+            className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-accent/60"
+          >
+            <option value="manual">Enter address manually</option>
+            {contacts.map((contact) => (
+              <option key={contact.id} value={contact.id}>
+                {contact.name} — {formatShortAddress(contact.address)}
+              </option>
+            ))}
+          </select>
+        </div>
+
         <label className="flex flex-col gap-2 text-sm">
           <span className="text-muted">Recipient address</span>
           <input
             value={recipient}
             onChange={(event) => {
               setRecipient(event.target.value);
+              setSelectedContactId("manual");
               setPreview(undefined);
               setHasSubmittedPreview(false);
               setRiskAssessment(undefined);
@@ -309,6 +466,52 @@ export default function TransactionBuilder() {
                 This is an AI-assisted assessment, not a safety guarantee. No
                 transaction signing or sending has been requested.
               </p>
+              <div className="mt-5 border-t border-border pt-4">
+                <button
+                  type="button"
+                  onClick={handleRecordAssessment}
+                  disabled={
+                    !isConnected ||
+                    chainId !== GUARDIAN_CHAIN_ID ||
+                    isRecordingAssessment ||
+                    isConfirmingAssessment ||
+                    isAssessmentConfirmed
+                  }
+                  className="rounded-full border border-accent/40 bg-accent/10 px-4 py-2 text-sm font-medium text-accent hover:bg-accent/20 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {isRecordingAssessment
+                    ? "Confirm in wallet..."
+                    : isConfirmingAssessment
+                      ? "Confirming..."
+                      : isAssessmentConfirmed
+                        ? "Assessment recorded"
+                        : "Record Assessment"}
+                </button>
+                {!isConnected ? (
+                  <p className="mt-3 text-sm text-red-400">
+                    Connect your wallet to record this assessment.
+                  </p>
+                ) : chainId !== GUARDIAN_CHAIN_ID ? (
+                  <p className="mt-3 text-sm text-red-400">
+                    Switch to BNB Smart Chain Testnet (chain ID 97) to record this assessment.
+                  </p>
+                ) : null}
+                {assessmentTransactionHash ? (
+                  <p className="mt-3 break-all text-sm text-muted">
+                    Transaction hash: <span className="font-mono">{assessmentTransactionHash}</span>
+                  </p>
+                ) : null}
+                {isAssessmentConfirmed ? (
+                  <p className="mt-3 text-sm text-accent">
+                    Assessment successfully recorded on the Web3Guardian contract.
+                  </p>
+                ) : null}
+                {recordError || writeError || isConfirmationError ? (
+                  <p className="mt-3 text-sm text-red-400">
+                    {recordError || getWalletErrorMessage(writeError ?? confirmationError)}
+                  </p>
+                ) : null}
+              </div>
             </div>
           ) : null}
         </div>

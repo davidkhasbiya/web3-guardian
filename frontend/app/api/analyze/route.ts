@@ -16,7 +16,7 @@ type AnalyzeResponse = {
   recommendation: string;
 };
 
-const GEMINI_MODEL = "gemini-3.5-flash";
+const GEMINI_MODEL = "gemini-3.5-flash-lite";
 const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 const RISK_LEVELS: RiskLevel[] = ["LOW", "MEDIUM", "HIGH"];
 
