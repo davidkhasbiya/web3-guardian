@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAccount, useChainId } from "wagmi";
 
 import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
 import { GUARDIAN_CHAIN_ID } from "@/lib/guardianContract";
-import { getContacts, saveContacts } from "@/lib/contacts";
+import { deleteContact, getContacts } from "@/lib/contacts";
 
 const SETTINGS_KEY = "web3guardian_settings";
 
@@ -66,6 +66,34 @@ export default function SettingsPage() {
     loadSettings,
   );
   const [savedMessage, setSavedMessage] = useState("");
+  const [savedContactsCount, setSavedContactsCount] = useState(0);
+
+  useEffect(() => {
+    if (!address || !isConnected) {
+      queueMicrotask(() => {
+        setSavedContactsCount(0);
+      });
+      return;
+    }
+
+    let cancelled = false;
+
+    void getContacts(address)
+      .then((contacts) => {
+        if (!cancelled) {
+          setSavedContactsCount(contacts.length);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setSavedContactsCount(0);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [address, isConnected]);
 
   function showSavedMessage(message: string) {
     setSavedMessage(message);
@@ -99,9 +127,23 @@ export default function SettingsPage() {
     showSavedMessage("Settings restored to default");
   }
 
-  function handleClearContacts() {
-    saveContacts([]);
-    showSavedMessage("Saved contacts cleared");
+  async function handleClearContacts() {
+    if (!address || !isConnected) {
+      showSavedMessage("Connect your wallet to clear contacts");
+      return;
+    }
+
+    try {
+      const contacts = await getContacts(address);
+
+      await Promise.all(
+        contacts.map((contact) => deleteContact(contact.id, address)),
+      );
+
+      showSavedMessage("Saved contacts cleared");
+    } catch {
+      showSavedMessage("Failed to clear contacts");
+    }
   }
 
   const networkName =
@@ -114,7 +156,6 @@ export default function SettingsPage() {
       ? `${address.slice(0, 6)}...${address.slice(-4)}`
       : address ?? "Not connected";
 
-  const savedContactsCount = getContacts().length;
 
   return (
     <div className="min-h-full">

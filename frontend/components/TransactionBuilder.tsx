@@ -40,6 +40,12 @@ type RiskAssessment = {
   recommendation: string;
 };
 
+type AssessmentTransactionStatus =
+  | "idle"
+  | "pending"
+  | "confirmed"
+  | "failed";
+
 function isRiskAssessment(value: unknown): value is RiskAssessment {
   if (
     typeof value !== "object" ||
@@ -189,6 +195,8 @@ export default function TransactionBuilder() {
 
   const [assessmentTransactionHash, setAssessmentTransactionHash] =
     useState<`0x${string}`>();
+  const [assessmentTransactionStatus, setAssessmentTransactionStatus] =
+    useState<AssessmentTransactionStatus>("idle");
 
   const {
     writeContract,
@@ -201,8 +209,6 @@ export default function TransactionBuilder() {
 
   const {
     data: assessmentReceipt,
-    isLoading: isConfirmingAssessment,
-    isSuccess: isAssessmentConfirmed,
     isError: isConfirmationError,
     error: confirmationError,
   } = useWaitForTransactionReceipt({
@@ -210,6 +216,15 @@ export default function TransactionBuilder() {
     chainId: GUARDIAN_CHAIN_ID,
     hash: assessmentTransactionHash,
   });
+
+  const currentAssessmentTransactionStatus =
+    assessmentReceipt
+      ? assessmentReceipt.status === "success"
+        ? "confirmed"
+        : "failed"
+      : isConfirmationError
+        ? "failed"
+        : assessmentTransactionStatus;
 
   /**
    * Prevent the same confirmed assessment transaction
@@ -219,15 +234,48 @@ export default function TransactionBuilder() {
     useRef<Set<`0x${string}`>>(new Set());
 
   /**
-   * Load saved contacts.
+   * Load saved contacts for the connected wallet.
    */
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      setContacts(getContacts());
-    }, 0);
+    if (!address || !isConnected) {
+      return;
+    }
 
-    return () => window.clearTimeout(timer);
-  }, []);
+    let cancelled = false;
+
+    async function loadContacts() {
+      try {
+        const currentAddress = address;
+        if (!currentAddress) {
+          return;
+        }
+
+        const nextContacts = await getContacts(currentAddress);
+
+        if (!cancelled) {
+          setContacts(nextContacts);
+          if (nextContacts.length === 0) {
+            setSelectedContactId("manual");
+          }
+        }
+      } catch (error) {
+        if (process.env.NODE_ENV === "development") {
+          console.error("Failed to load contacts:", error);
+        }
+
+        if (!cancelled) {
+          setContacts([]);
+          setSelectedContactId("manual");
+        }
+      }
+    }
+
+    void loadContacts();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [address, isConnected]);
 
   /**
    * Current configured chain name.
@@ -344,7 +392,7 @@ export default function TransactionBuilder() {
    */
   useEffect(() => {
     if (
-      !isAssessmentConfirmed ||
+      currentAssessmentTransactionStatus !== "confirmed" ||
       !assessmentTransactionHash ||
       !address ||
       !riskAssessment ||
@@ -420,7 +468,7 @@ export default function TransactionBuilder() {
     address,
     assessmentReceipt,
     assessmentTransactionHash,
-    isAssessmentConfirmed,
+    currentAssessmentTransactionStatus,
     preview,
     riskAssessment,
     saveAssessmentToDatabase,
@@ -430,39 +478,29 @@ export default function TransactionBuilder() {
    * Contact selection.
    */
   function handleSelectContact(value: string) {
+    if (value === "no-contacts" || value === "separator") {
+      return;
+    }
+
     setSelectedContactId(value);
 
     if (value === "manual") {
       return;
     }
 
-    const selectedContact = contacts.find(
-      (contact) => contact.id === value,
-    );
+    const selectedContact = contacts.find((contact) => contact.id === value);
 
     if (!selectedContact) {
       return;
     }
 
     setRecipient(selectedContact.address);
-
     setPreview(undefined);
     setHasSubmittedPreview(false);
-
     setRiskAssessment(undefined);
-
     setRiskError("");
-
-    setRecordError("");
-
-    setAssessmentTransactionHash(undefined);
-
-    setErrors((currentErrors) => ({
-      ...currentErrors,
-      to: undefined,
-    }));
+    setErrors((currentErrors) => ({ ...currentErrors, to: undefined }));
   }
-
   /**
    * Prepare transaction preview.
    *
@@ -494,6 +532,7 @@ export default function TransactionBuilder() {
     setRecordError("");
 
     setAssessmentTransactionHash(undefined);
+    setAssessmentTransactionStatus("idle");
 
     resetWriteContract();
   }
@@ -525,6 +564,7 @@ export default function TransactionBuilder() {
     setRecordError("");
 
     setAssessmentTransactionHash(undefined);
+    setAssessmentTransactionStatus("idle");
 
     resetWriteContract();
 
@@ -629,6 +669,9 @@ export default function TransactionBuilder() {
 
     resetWriteContract();
 
+    setAssessmentTransactionHash(undefined);
+    setAssessmentTransactionStatus("pending");
+
     writeContract(
       {
         address: GUARDIAN_CONTRACT_ADDRESS,
@@ -653,11 +696,13 @@ export default function TransactionBuilder() {
       {
         onSuccess: (hash) => {
           setAssessmentTransactionHash(hash);
+          setAssessmentTransactionStatus("pending");
 
           setRecordError("");
         },
 
         onError: (error) => {
+          setAssessmentTransactionStatus("failed");
           setRecordError(
             getWalletErrorMessage(error),
           );
@@ -699,28 +744,28 @@ export default function TransactionBuilder() {
           <select
             id="recipient-contact"
             value={selectedContactId}
-            onChange={(event) =>
-              handleSelectContact(
-                event.target.value,
-              )
-            }
+            onChange={(event) => handleSelectContact(event.target.value)}
             className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-accent/60"
           >
-            <option value="manual">
-              Enter address manually
-            </option>
+            <option value="manual">Enter address manually</option>
 
-            {contacts.map((contact) => (
-              <option
-                key={contact.id}
-                value={contact.id}
-              >
-                {contact.name} —{" "}
-                {formatShortAddress(
-                  contact.address,
-                )}
+            {contacts.length === 0 ? (
+              <option value="no-contacts" disabled>
+                No saved contacts — add one in Contacts
               </option>
-            ))}
+            ) : (
+              <>
+                <option value="separator" disabled>
+                  ──────────────
+                </option>
+
+                {contacts.map((contact) => (
+                  <option key={contact.id} value={contact.id}>
+                    {contact.name} — {formatShortAddress(contact.address)}
+                  </option>
+                ))}
+              </>
+            )}
           </select>
         </div>
 
@@ -1034,16 +1079,16 @@ export default function TransactionBuilder() {
                     chainId !==
                     GUARDIAN_CHAIN_ID ||
                     isRecordingAssessment ||
-                    isConfirmingAssessment ||
-                    isAssessmentConfirmed
+                    currentAssessmentTransactionStatus === "pending" ||
+                    currentAssessmentTransactionStatus === "confirmed"
                   }
                   className="rounded-full border border-accent/40 bg-accent/10 px-4 py-2 text-sm font-medium text-accent hover:bg-accent/20 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {isRecordingAssessment
                     ? "Confirm in wallet..."
-                    : isConfirmingAssessment
+                    : currentAssessmentTransactionStatus === "pending"
                       ? "Confirming..."
-                      : isAssessmentConfirmed
+                      : currentAssessmentTransactionStatus === "confirmed"
                         ? "Assessment recorded"
                         : "Record Assessment"}
                 </button>
@@ -1073,17 +1118,34 @@ export default function TransactionBuilder() {
                 ) : null}
 
                 {/* CONFIRMED */}
-                {isAssessmentConfirmed ? (
-                  <p className="mt-3 text-sm text-accent">
-                    Assessment successfully recorded
-                    on the Web3Guardian contract.
-                  </p>
+                {currentAssessmentTransactionStatus === "confirmed" ? (
+                  <div className="mt-3 space-y-2 text-sm text-accent">
+                    <p>
+                      ✓ Assessment recorded on-chain
+                    </p>
+
+                    <p>
+                      Transaction confirmed successfully.
+                    </p>
+
+                    {assessmentTransactionHash ? (
+                      <a
+                        href={`https://testnet.bscscan.com/tx/${assessmentTransactionHash}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-block underline underline-offset-4 hover:text-foreground"
+                      >
+                        View on BscScan
+                      </a>
+                    ) : null}
+                  </div>
                 ) : null}
 
                 {/* SAVE ERROR */}
                 {recordError ||
                   writeError ||
-                  isConfirmationError ? (
+                  isConfirmationError ||
+                  currentAssessmentTransactionStatus === "failed" ? (
                   <p className="mt-3 text-sm text-red-400">
                     {recordError ||
                       getWalletErrorMessage(

@@ -9,7 +9,9 @@ export const wagmiConfig = createConfig({
   transports: {
     [mainnet.id]: http(),
     [sepolia.id]: http(),
-    [bscTestnet.id]: http(),
+    [bscTestnet.id]: http(
+      "https://bsc-testnet-dataseed.bnbchain.org",
+    ),
   },
   ssr: true,
 });

@@ -5,34 +5,19 @@ import { isAddress } from "viem";
 import { useAccount } from "wagmi";
 import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
-import { type Contact, formatShortAddress } from "@/lib/contacts";
+import {
+    type Contact,
+    createContact,
+    deleteContact,
+    formatShortAddress,
+    getContacts,
+} from "@/lib/contacts";
 
 const emptyForm = {
     name: "",
     address: "",
     note: "",
 };
-
-type ApiContact = {
-    id: string;
-    wallet_address: string;
-    name: string;
-    contact_address: string;
-    note: string | null;
-    created_at: string;
-    updated_at: string;
-};
-
-const API_URL = "http://localhost:4000";
-
-function mapApiContact(contact: ApiContact): Contact {
-    return {
-        id: contact.id,
-        name: contact.name,
-        address: contact.contact_address,
-        note: contact.note ?? undefined,
-    };
-}
 
 export default function ContactsPage() {
     const { address: walletAddress, isConnected } = useAccount();
@@ -50,7 +35,6 @@ export default function ContactsPage() {
             return;
         }
 
-        const currentWalletAddress: string = walletAddress;
         let cancelled = false;
 
         async function loadContacts() {
@@ -58,32 +42,15 @@ export default function ContactsPage() {
             setLoadError("");
 
             try {
-                const response = await fetch(
-                    `${API_URL}/api/contacts?walletAddress=${encodeURIComponent(
-                        currentWalletAddress,
-                    )}`,
-                );
-
-                const data: unknown = await response.json();
-
-                if (!response.ok) {
-                    const message =
-                        typeof data === "object" &&
-                            data !== null &&
-                            "error" in data &&
-                            typeof data.error === "string"
-                            ? data.error
-                            : "Failed to load contacts.";
-
-                    throw new Error(message);
+                const currentWalletAddress = walletAddress;
+                if (!currentWalletAddress) {
+                    return;
                 }
 
+                const nextContacts = await getContacts(currentWalletAddress);
+
                 if (!cancelled) {
-                    setContacts(
-                        Array.isArray(data)
-                            ? data.map(mapApiContact)
-                            : [],
-                    );
+                    setContacts(nextContacts);
                 }
             } catch (error) {
                 if (!cancelled) {
@@ -92,6 +59,7 @@ export default function ContactsPage() {
                             ? error.message
                             : "Failed to load contacts.",
                     );
+                    setContacts([]);
                 }
             } finally {
                 if (!cancelled) {
@@ -151,38 +119,14 @@ export default function ContactsPage() {
         setFormError("");
 
         try {
-            const response = await fetch(`${API_URL}/api/contacts`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    walletAddress: currentWalletAddress,
-                    name: trimmedName,
-                    contactAddress: trimmedAddress,
-                    note: trimmedNote || undefined,
-                }),
+            const nextContact = await createContact({
+                walletAddress: currentWalletAddress,
+                name: trimmedName,
+                address: trimmedAddress,
+                note: trimmedNote || undefined,
             });
 
-            const data: unknown = await response.json();
-
-            if (!response.ok) {
-                const message =
-                    typeof data === "object" &&
-                        data !== null &&
-                        "error" in data &&
-                        typeof data.error === "string"
-                        ? data.error
-                        : "Failed to save contact.";
-
-                throw new Error(message);
-            }
-
-            setContacts((current) => [
-                mapApiContact(data as ApiContact),
-                ...current,
-            ]);
-
+            setContacts((current) => [nextContact, ...current]);
             setForm(emptyForm);
         } catch (error) {
             setFormError(
@@ -196,31 +140,16 @@ export default function ContactsPage() {
     }
 
     async function handleDelete(contactId: string) {
+        if (!walletAddress || !isConnected) {
+            setFormError("Connect your wallet before deleting a contact.");
+            return;
+        }
+
         setFormError("");
         setDeletingContactId(contactId);
 
         try {
-            const response = await fetch(
-                `${API_URL}/api/contacts/${encodeURIComponent(contactId)}`,
-                {
-                    method: "DELETE",
-                },
-            );
-
-            if (!response.ok) {
-                const data: unknown = await response.json().catch(() => null);
-
-                const message =
-                    typeof data === "object" &&
-                        data !== null &&
-                        "error" in data &&
-                        typeof data.error === "string"
-                        ? data.error
-                        : "Failed to delete contact.";
-
-                throw new Error(message);
-            }
-
+            await deleteContact(contactId, walletAddress);
             setContacts((current) =>
                 current.filter((contact) => contact.id !== contactId),
             );

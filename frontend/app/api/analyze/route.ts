@@ -24,6 +24,16 @@ function jsonError(message: string, status: number) {
   return Response.json({ error: message }, { status });
 }
 
+function logGeminiFailure(reason: string, details?: Record<string, unknown>) {
+  if (process.env.NODE_ENV === "development") {
+    console.error("Gemini API failure", {
+      model: GEMINI_MODEL,
+      ...details,
+      reason,
+    });
+  }
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -138,6 +148,9 @@ export async function POST(request: Request) {
   const apiKey = process.env.GEMINI_API_KEY;
 
   if (!apiKey) {
+    logGeminiFailure("GEMINI_API_KEY is missing", {
+      apiKeyPresent: false,
+    });
     return jsonError("Missing GEMINI_API_KEY server environment variable.", 500);
   }
 
@@ -173,23 +186,45 @@ export async function POST(request: Request) {
         },
       }),
     });
-  } catch {
-    return jsonError("Gemini API request failed.", 502);
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    logGeminiFailure(reason, {
+      apiKeyPresent: true,
+    });
+    return jsonError(`Gemini API request failed: ${reason}`, 502);
   }
 
   if (!geminiResponse.ok) {
-    return jsonError("Gemini API returned an error.", 502);
+    const responseBody = await geminiResponse.text();
+    logGeminiFailure("Gemini returned a non-success HTTP status", {
+      apiKeyPresent: true,
+      status: geminiResponse.status,
+      responseBody,
+    });
+    return jsonError(
+      `Gemini API returned HTTP ${geminiResponse.status}: ${responseBody || "empty response body"}`,
+      502,
+    );
   }
 
   let geminiBody: unknown;
   try {
     geminiBody = await geminiResponse.json();
-  } catch {
-    return jsonError("Gemini API returned invalid JSON.", 502);
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    logGeminiFailure("Gemini returned invalid JSON", {
+      apiKeyPresent: true,
+      reasonDetail: reason,
+    });
+    return jsonError(`Gemini API returned invalid JSON: ${reason}`, 502);
   }
 
   const modelText = extractGeminiText(geminiBody);
   if (!modelText) {
+    logGeminiFailure("Gemini response did not include analysis text", {
+      apiKeyPresent: true,
+      responseBody: JSON.stringify(geminiBody),
+    });
     return jsonError("Gemini response did not include analysis text.", 502);
   }
 
@@ -197,6 +232,10 @@ export async function POST(request: Request) {
   const analysis = normalizeGeminiResponse(parsedAnalysis);
 
   if (!analysis) {
+    logGeminiFailure("Gemini response did not match the expected analysis shape", {
+      apiKeyPresent: true,
+      responseBody: modelText,
+    });
     return jsonError("Gemini response did not match the expected analysis shape.", 502);
   }
 
