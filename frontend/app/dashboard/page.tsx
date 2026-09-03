@@ -1,5 +1,6 @@
 import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
+import DashboardOverview from "@/components/DashboardOverview";
 import StatusCard from "@/components/StatusCard";
 import WalletStatus from "@/components/WalletStatus";
 
@@ -7,7 +8,7 @@ export default function DashboardPage() {
     return (
         <div className="min-h-full">
             <Header />
-            <main className="mx-auto max-w-6xl px-6 py-8">
+            <main className="w-full px-5 py-8 sm:px-6 lg:px-8">
                 <div className="flex flex-col gap-6 md:flex-row">
                     <Sidebar />
                     <div className="min-w-0 flex-1">
@@ -37,6 +38,8 @@ export default function DashboardPage() {
                                 description="Risk assessments can be recorded on-chain through the Web3Guardian contract on BNB Smart Chain Testnet."
                             />
                         </section>
+
+                        <DashboardOverview />
                     </div>
                 </div>
             </main>
