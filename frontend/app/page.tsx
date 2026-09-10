@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 
 const capabilities = [
   [
@@ -67,9 +68,13 @@ function Brand() {
       aria-label="Web3 Guardian home"
       className="flex items-center gap-3"
     >
-      <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-accent/30 bg-accent/10 font-mono text-sm font-semibold text-accent">
-        WG
-      </span>
+      <Image
+        src="/logo.png"
+        alt="Web3 Guardian logo"
+        width={36}
+        height={36}
+        className="object-contain"
+      />
       <span className="hidden sm:block">
         <span className="block text-sm font-semibold tracking-wide">
           Web3 Guardian

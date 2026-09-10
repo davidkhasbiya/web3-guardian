@@ -16,6 +16,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Web3 Guardian",
   description: "AI-powered Web3 transaction guardian",
+  icons: {
+    icon: "/icon.png",
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

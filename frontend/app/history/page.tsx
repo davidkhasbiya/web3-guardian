@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useAccount, useChainId } from "wagmi";
 
 import Header from "@/components/Header";
@@ -49,6 +50,17 @@ function formatTimestamp(timestamp: string) {
     });
 }
 
+function getRiskColor(level: "LOW" | "MEDIUM" | "HIGH") {
+    switch (level) {
+        case "HIGH":
+            return "border-red-500/30 bg-red-500/10 text-red-400";
+        case "MEDIUM":
+            return "border-yellow-500/30 bg-yellow-500/10 text-yellow-400";
+        default:
+            return "border-accent/30 bg-accent/10 text-accent";
+    }
+}
+
 function mapAssessment(record: ApiAssessment): AssessmentHistory {
     const analysis =
         typeof record.analysis === "object" && record.analysis !== null
@@ -76,6 +88,30 @@ function mapAssessment(record: ApiAssessment): AssessmentHistory {
         summary: record.ai_summary,
         recommendation: record.recommendation,
     };
+}
+
+function StatCard({
+    label,
+    value,
+    description,
+}: {
+    label: string;
+    value: string | number;
+    description?: string;
+}) {
+    return (
+        <article className="rounded-xl border border-border bg-card p-5">
+            <p className="text-xs font-medium uppercase tracking-[0.1em] text-muted">
+                {label}
+            </p>
+            <p className="mt-3 text-3xl font-semibold tracking-tight text-foreground">
+                {value}
+            </p>
+            {description && (
+                <p className="mt-2 text-xs text-muted">{description}</p>
+            )}
+        </article>
+    );
 }
 
 export default function HistoryPage() {
@@ -188,219 +224,258 @@ export default function HistoryPage() {
         !error &&
         history.length > 0;
 
+    // Calculate statistics
+    const totalAssessments = history.length;
+    const lowRiskCount = history.filter(
+        (a) => a.riskLevel === "LOW"
+    ).length;
+    const mediumRiskCount = history.filter(
+        (a) => a.riskLevel === "MEDIUM"
+    ).length;
+    const highRiskCount = history.filter(
+        (a) => a.riskLevel === "HIGH"
+    ).length;
+
     return (
         <div className="min-h-full">
             <Header />
 
-            <main className="mx-auto max-w-6xl px-6 py-8">
+            <main className="w-full px-5 py-8 sm:px-6 lg:px-8">
                 <div className="flex flex-col gap-6 md:flex-row">
                     <Sidebar />
 
-                    <section className="min-w-0 flex-1">
-                        <div className="rounded-xl border border-border bg-card p-5">
-                            <p className="text-sm text-muted">
+                    <div className="min-w-0 flex-1">
+                        {/* Page Header */}
+                        <section className="mb-8">
+                            <p className="mb-2 text-xs font-medium uppercase tracking-[0.2em] text-accent-dim">
                                 Assessment History
                             </p>
-
-                            <div className="mt-2 flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+                            <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
                                 <div>
-                                    <h1 className="text-2xl font-semibold tracking-tight">
-                                        Recorded reviews
+                                    <h1 className="text-3xl font-semibold tracking-tight">
+                                        Security Assessment History
                                     </h1>
-
-                                    <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">
-                                        Your AI-assisted security assessments
-                                        saved to Web3 Guardian.
+                                    <p className="mt-3 max-w-2xl text-sm leading-7 text-muted">
+                                        Review previous AI-assisted transaction risk
+                                        assessments recorded by Web3 Guardian.
                                     </p>
                                 </div>
-
-                                {isConnected && !showNetworkPrompt && (
-                                    <div className="rounded-full border border-border px-3 py-1.5 text-xs text-muted">
-                                        {history.length}{" "}
-                                        {history.length === 1
+                                {showHistory && (
+                                    <div className="shrink-0 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted">
+                                        {totalAssessments}{" "}
+                                        {totalAssessments === 1
                                             ? "assessment"
                                             : "assessments"}
                                     </div>
                                 )}
                             </div>
-                        </div>
+                        </section>
 
                         {showWalletPrompt ? (
-                            <div className="mt-5 rounded-xl border border-border bg-card p-8 text-center">
-                                <p className="text-sm font-medium">
-                                    Connect your wallet to view history
+                            <div className="rounded-xl border border-border bg-card p-8 text-center">
+                                <div className="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-full border border-border bg-card/50">
+                                    <span className="text-xl">🔌</span>
+                                </div>
+                                <p className="mt-4 font-medium">
+                                    Connect your wallet
                                 </p>
-
-                                <p className="mt-2 text-sm text-muted">
-                                    Your recorded assessments are linked to
-                                    your wallet address.
+                                <p className="mt-2 text-sm leading-6 text-muted">
+                                    Your recorded assessments are linked to your
+                                    wallet address. Connect to view your
+                                    assessment history.
                                 </p>
                             </div>
                         ) : showNetworkPrompt ? (
-                            <div className="mt-5 rounded-xl border border-red-500/20 bg-red-500/5 p-6">
-                                <p className="text-sm font-medium text-red-400">
-                                    Wrong network
-                                </p>
-
-                                <p className="mt-2 text-sm leading-6 text-muted">
-                                    Switch your wallet to BNB Smart Chain
-                                    Testnet (chain ID 97) to view assessment
-                                    history.
-                                </p>
+                            <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-6">
+                                <div className="flex items-start gap-4">
+                                    <div className="mt-0.5 text-xl">⚠️</div>
+                                    <div>
+                                        <p className="font-medium text-red-400">
+                                            Wrong network
+                                        </p>
+                                        <p className="mt-2 text-sm leading-6 text-muted">
+                                            Switch to BNB Smart Chain Testnet
+                                            (chain ID 97) to view your
+                                            assessment history.
+                                        </p>
+                                    </div>
+                                </div>
                             </div>
                         ) : showLoading ? (
-                            <div className="mt-5 rounded-xl border border-border bg-card p-8 text-center">
-                                <p className="text-sm text-muted">
-                                    Loading assessment history...
-                                </p>
+                            <div className="space-y-4">
+                                <div className="h-24 animate-pulse rounded-xl border border-border bg-card" />
+                                <div className="h-32 animate-pulse rounded-xl border border-border bg-card" />
+                                <div className="h-32 animate-pulse rounded-xl border border-border bg-card" />
                             </div>
                         ) : showError ? (
-                            <div className="mt-5 rounded-xl border border-red-500/20 bg-red-500/5 p-6">
-                                <p className="text-sm font-medium text-red-400">
-                                    Could not load history
-                                </p>
-
-                                <p className="mt-2 text-sm leading-6 text-muted">
-                                    {error}
-                                </p>
+                            <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-6">
+                                <div className="flex items-start gap-4">
+                                    <div className="mt-0.5 text-xl">❌</div>
+                                    <div>
+                                        <p className="font-medium text-red-400">
+                                            Could not load history
+                                        </p>
+                                        <p className="mt-2 text-sm leading-6 text-muted">
+                                            {error}
+                                        </p>
+                                    </div>
+                                </div>
                             </div>
                         ) : showEmpty ? (
-                            <div className="mt-5 rounded-xl border border-border bg-card p-8 text-center">
-                                <p className="text-sm font-medium">
-                                    No assessments recorded yet
+                            <div className="rounded-xl border border-border bg-card p-8 text-center">
+                                <div className="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-full border border-border bg-card/50">
+                                    <span className="text-xl">📋</span>
+                                </div>
+                                <p className="mt-4 font-medium">
+                                    No assessments yet
                                 </p>
-
                                 <p className="mt-2 text-sm leading-6 text-muted">
-                                    Analyze a transaction and save its
-                                    assessment to see it appear here.
+                                    Assessments will appear here after you
+                                    analyze and record transaction risk
+                                    assessments.
                                 </p>
+                                <Link
+                                    href="/analyze"
+                                    className="mt-4 inline-block rounded-lg border border-accent bg-accent/10 px-4 py-2 text-sm font-medium text-accent transition-colors hover:bg-accent/20"
+                                >
+                                    Go to Risk Analyzer →
+                                </Link>
                             </div>
                         ) : showHistory ? (
-                            <div className="mt-5 space-y-4">
-                                {history.map((assessment) => (
-                                    <article
-                                        key={assessment.id}
-                                        className="rounded-xl border border-border bg-card p-5"
-                                    >
-                                        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                                            <div className="min-w-0">
-                                                <div className="flex flex-wrap items-center gap-2">
-                                                    <span
-                                                        className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${assessment.riskLevel ===
-                                                            "HIGH"
-                                                            ? "border-red-500/30 bg-red-500/10 text-red-400"
-                                                            : assessment.riskLevel ===
-                                                                "MEDIUM"
-                                                                ? "border-yellow-500/30 bg-yellow-500/10 text-yellow-400"
-                                                                : "border-accent/30 bg-accent/10 text-accent"
-                                                            }`}
-                                                    >
-                                                        {assessment.riskLevel}
-                                                    </span>
+                            <div className="space-y-6">
+                                {/* Summary Cards */}
+                                <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                                    <StatCard
+                                        label="Total Assessments"
+                                        value={totalAssessments}
+                                    />
+                                    <StatCard
+                                        label="Low Risk"
+                                        value={lowRiskCount}
+                                        description={
+                                            totalAssessments > 0
+                                                ? `${Math.round((lowRiskCount / totalAssessments) * 100)}%`
+                                                : "0%"
+                                        }
+                                    />
+                                    <StatCard
+                                        label="Medium Risk"
+                                        value={mediumRiskCount}
+                                        description={
+                                            totalAssessments > 0
+                                                ? `${Math.round((mediumRiskCount / totalAssessments) * 100)}%`
+                                                : "0%"
+                                        }
+                                    />
+                                    <StatCard
+                                        label="High Risk"
+                                        value={highRiskCount}
+                                        description={
+                                            totalAssessments > 0
+                                                ? `${Math.round((highRiskCount / totalAssessments) * 100)}%`
+                                                : "0%"
+                                        }
+                                    />
+                                </section>
 
-                                                    <span className="text-sm text-muted">
-                                                        Risk score:{" "}
-                                                        <span className="font-medium text-foreground">
-                                                            {assessment.score}
-                                                            /100
-                                                        </span>
-                                                    </span>
-                                                </div>
-
-                                                {assessment.summary ? (
-                                                    <p className="mt-4 text-sm leading-6 text-muted">
-                                                        {assessment.summary}
-                                                    </p>
-                                                ) : null}
-
-                                                {assessment.transactionId ? (
-                                                    <>
-                                                        <p className="mt-4 text-xs text-muted">
-                                                            Transaction ID
-                                                        </p>
-
-                                                        <p className="mt-1 break-all font-mono text-sm">
-                                                            {
-                                                                assessment.transactionId
-                                                            }
-                                                        </p>
-                                                    </>
-                                                ) : null}
-                                            </div>
-
-                                            <div className="shrink-0 text-left sm:text-right">
-                                                <p className="text-xs text-muted">
-                                                    Recorded
-                                                </p>
-
-                                                <p className="mt-1 text-sm">
-                                                    {formatTimestamp(
-                                                        new Date(
-                                                            assessment.timestamp,
-                                                        ).toISOString(),
-                                                    )}
-                                                </p>
-
-                                                {assessment.blockNumber !==
-                                                    null ? (
-                                                    <p className="mt-2 text-xs text-muted">
-                                                        Block #
-                                                        {
-                                                            assessment.blockNumber
-                                                        }
-                                                    </p>
-                                                ) : null}
-                                            </div>
-                                        </div>
-
-                                        {assessment.recommendation ? (
-                                            <div className="mt-5 border-t border-border pt-4">
-                                                <p className="text-xs text-muted">
-                                                    Recommendation
-                                                </p>
-
-                                                <p className="mt-2 text-sm leading-6">
-                                                    {
-                                                        assessment.recommendation
-                                                    }
-                                                </p>
-                                            </div>
-                                        ) : null}
-
-                                        {assessment.transactionHash ? (
-                                            <div className="mt-5 border-t border-border pt-4">
-                                                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                                                    <div className="flex items-center gap-3">
-                                                        <a
-                                                            href={`https://testnet.bscscan.com/tx/${assessment.transactionHash}`}
-                                                            target="_blank"
-                                                            rel="noreferrer"
-                                                            className="text-sm font-medium text-accent hover:underline"
-                                                        >
-                                                            View transaction ↗
-                                                        </a>
-
-                                                        <span className="font-mono text-xs text-muted">
-                                                            {shortHash(
-                                                                assessment.transactionHash,
+                                {/* Recent Assessments */}
+                                <section>
+                                    <h2 className="mb-4 text-lg font-semibold">
+                                        Recent Assessments
+                                    </h2>
+                                    <div className="space-y-4">
+                                        {history.map((assessment) => (
+                                            <article
+                                                key={assessment.id}
+                                                className="overflow-hidden rounded-xl border border-border bg-card transition-all hover:border-accent/50"
+                                            >
+                                                {/* Risk badge and score row */}
+                                                <div className="border-b border-border bg-card/50 px-6 py-4">
+                                                    <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
+                                                        <div className="flex flex-wrap items-center gap-3">
+                                                            <span
+                                                                className={`rounded-full border px-3 py-1 text-xs font-semibold ${getRiskColor(assessment.riskLevel)}`}
+                                                            >
+                                                                {assessment.riskLevel}
+                                                            </span>
+                                                            <span className="text-sm font-medium text-foreground">
+                                                                Score:{" "}
+                                                                <span className="font-semibold">
+                                                                    {
+                                                                        assessment.score
+                                                                    }
+                                                                    /100
+                                                                </span>
+                                                            </span>
+                                                        </div>
+                                                        <span className="text-xs text-muted">
+                                                            {formatTimestamp(
+                                                                new Date(
+                                                                    assessment.timestamp,
+                                                                ).toISOString(),
                                                             )}
                                                         </span>
                                                     </div>
-
-                                                    <span className="break-all font-mono text-xs text-muted">
-                                                        Tx hash:{" "}
-                                                        {
-                                                            assessment.transactionHash
-                                                        }
-                                                    </span>
                                                 </div>
-                                            </div>
-                                        ) : null}
-                                    </article>
-                                ))}
+
+                                                {/* Summary and details */}
+                                                <div className="px-6 py-4">
+                                                    {assessment.summary && (
+                                                        <div className="mb-4">
+                                                            <p className="text-xs font-medium uppercase tracking-[0.1em] text-muted">
+                                                                Summary
+                                                            </p>
+                                                            <p className="mt-2 text-sm leading-6 text-foreground">
+                                                                {assessment.summary}
+                                                            </p>
+                                                        </div>
+                                                    )}
+
+                                                    {assessment.recommendation && (
+                                                        <div className="mb-4 border-t border-border pt-4">
+                                                            <p className="text-xs font-medium uppercase tracking-[0.1em] text-muted">
+                                                                Recommendation
+                                                            </p>
+                                                            <p className="mt-2 text-sm leading-6 text-foreground">
+                                                                {
+                                                                    assessment.recommendation
+                                                                }
+                                                            </p>
+                                                        </div>
+                                                    )}
+
+                                                    {assessment.transactionHash && (
+                                                        <div className="border-t border-border pt-4">
+                                                            <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
+                                                                <div className="min-w-0 flex-1">
+                                                                    <p className="text-xs font-medium uppercase tracking-[0.1em] text-muted">
+                                                                        Transaction
+                                                                    </p>
+                                                                    <p className="mt-2 break-all font-mono text-xs text-muted">
+                                                                        {shortHash(
+                                                                            assessment.transactionHash,
+                                                                        )}
+                                                                    </p>
+                                                                </div>
+                                                                <a
+                                                                    href={`https://testnet.bscscan.com/tx/${assessment.transactionHash}`}
+                                                                    target="_blank"
+                                                                    rel="noreferrer"
+                                                                    className="shrink-0 rounded-lg border border-accent/30 bg-accent/10 px-3 py-2 text-xs font-medium text-accent transition-colors hover:bg-accent/20"
+                                                                >
+                                                                    View on BscScan ↗
+                                                                </a>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </article>
+                                        ))}
+                                    </div>
+                                </section>
                             </div>
                         ) : null}
-                    </section>
+                    </div>
                 </div>
             </main>
         </div>

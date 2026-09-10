@@ -712,31 +712,26 @@ export default function TransactionBuilder() {
   }
 
   return (
-    <section className="mt-8 rounded-xl border border-border bg-card p-5">
-      <div className="mb-5">
-        <p className="text-sm text-muted">
+    <section className="rounded-lg border border-border bg-card p-6">
+      <div className="mb-6">
+        <h2 className="text-xl font-bold tracking-tight text-foreground">
           Transaction Builder
-        </p>
-
-        <h2 className="mt-2 text-xl font-semibold tracking-tight">
-          Prepare native BNB transfer
         </h2>
 
-        <p className="mt-3 max-w-2xl text-sm leading-6 text-muted">
-          Build a transfer preview for review. This does not
-          request a signature or send a transaction.
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">
+          Prepare a native BNB transfer for review. No signature or transaction will be sent.
         </p>
       </div>
 
       <form
         onSubmit={handleSubmit}
-        className="grid gap-4 lg:grid-cols-[1fr_1fr_auto]"
+        className="grid gap-4 lg:grid-cols-[1fr_1fr_auto] lg:gap-5"
       >
         {/* CONTACT */}
         <div className="flex flex-col gap-2 text-sm">
           <label
             htmlFor="recipient-contact"
-            className="text-muted"
+            className="font-medium text-muted"
           >
             Recipient
           </label>
@@ -745,7 +740,7 @@ export default function TransactionBuilder() {
             id="recipient-contact"
             value={selectedContactId}
             onChange={(event) => handleSelectContact(event.target.value)}
-            className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-accent/60"
+            className="rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground outline-none transition-colors focus:border-accent/60 focus:ring-1 focus:ring-accent/20"
           >
             <option value="manual">Enter address manually</option>
 
@@ -771,7 +766,7 @@ export default function TransactionBuilder() {
 
         {/* RECIPIENT ADDRESS */}
         <label className="flex flex-col gap-2 text-sm">
-          <span className="text-muted">
+          <span className="font-medium text-muted">
             Recipient address
           </span>
 
@@ -798,7 +793,7 @@ export default function TransactionBuilder() {
               }));
             }}
             placeholder="0x..."
-            className="rounded-lg border border-border bg-background px-3 py-2 font-mono text-sm outline-none placeholder:text-muted/50 focus:border-accent/60"
+            className="rounded-lg border border-border bg-background px-3 py-2.5 font-mono text-sm outline-none transition-colors placeholder:text-muted/50 focus:border-accent/60 focus:ring-1 focus:ring-accent/20"
           />
 
           {errors.to ? (
@@ -810,8 +805,8 @@ export default function TransactionBuilder() {
 
         {/* AMOUNT */}
         <label className="flex flex-col gap-2 text-sm">
-          <span className="text-muted">
-            Amount in BNB
+          <span className="font-medium text-muted">
+            Amount
           </span>
 
           <input
@@ -836,7 +831,7 @@ export default function TransactionBuilder() {
             }}
             inputMode="decimal"
             placeholder="0.05"
-            className="rounded-lg border border-border bg-background px-3 py-2 font-mono text-sm outline-none placeholder:text-muted/50 focus:border-accent/60"
+            className="rounded-lg border border-border bg-background px-3 py-2.5 font-mono text-sm outline-none transition-colors placeholder:text-muted/50 focus:border-accent/60 focus:ring-1 focus:ring-accent/20"
           />
 
           {errors.amountBnb ? (
@@ -846,44 +841,44 @@ export default function TransactionBuilder() {
           ) : null}
         </label>
 
-        {/* PREVIEW BUTTON */}
+        {/* PREVIEW CTA */}
         <div className="flex items-end">
           <button
             type="submit"
             disabled={!isConnected}
-            className="w-full rounded-full border border-accent/40 bg-accent/10 px-4 py-2 text-sm font-medium text-accent hover:bg-accent/20 disabled:cursor-not-allowed disabled:opacity-50 lg:w-auto"
+            className="w-full rounded-lg border border-accent/40 bg-accent/10 px-5 py-2.5 text-sm font-semibold text-accent transition-all hover:bg-accent/20 hover:shadow-lg hover:shadow-accent/20 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:shadow-none lg:w-auto"
           >
-            Preview
+            Review Transaction →
           </button>
         </div>
       </form>
 
       {errors.from ? (
-        <p className="mt-3 text-sm text-red-400">
+        <p className="mt-4 text-sm text-red-400">
           {errors.from}
         </p>
       ) : null}
 
-      {/* WALLET / NETWORK INFO */}
-      <div className="mt-5 grid gap-3 text-sm md:grid-cols-2">
-        <div className="rounded-lg border border-border bg-background/60 p-4">
-          <p className="text-muted">
+      {/* WALLET AND NETWORK INFO */}
+      <div className="mt-6 grid gap-4 text-sm md:grid-cols-2">
+        <div className="rounded-lg border border-border bg-background/50 p-4">
+          <p className="text-xs font-semibold tracking-wide uppercase text-muted">
             From
           </p>
 
-          <p className="mt-2 break-all font-mono text-foreground">
+          <p className="mt-2 break-all font-mono text-sm text-foreground">
             {isConnected && address
               ? address
               : "Connect wallet to use your address"}
           </p>
         </div>
 
-        <div className="rounded-lg border border-border bg-background/60 p-4">
-          <p className="text-muted">
-            Current network
+        <div className="rounded-lg border border-border bg-background/50 p-4">
+          <p className="text-xs font-semibold tracking-wide uppercase text-muted">
+            Network
           </p>
 
-          <p className="mt-2 font-mono text-foreground">
+          <p className="mt-2 font-mono text-sm text-foreground">
             {chainName}
           </p>
         </div>
@@ -891,184 +886,203 @@ export default function TransactionBuilder() {
 
       {/* TRANSACTION REVIEW */}
       {hasSubmittedPreview ? (
-        <div className="mt-5 rounded-lg border border-accent/30 bg-accent/5 p-4">
-          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-            <p className="text-sm font-medium text-accent">
-              Transaction Review
-            </p>
+        <div className="mt-6 space-y-5">
+          {/* Review Header */}
+          <div className="rounded-lg border border-accent/30 bg-accent/5 px-5 py-4">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div>
+                <h3 className="text-base font-semibold text-foreground">
+                  Transaction Review
+                </h3>
+                <p className="mt-1 text-xs text-muted">
+                  Verify the recipient and network before continuing.
+                </p>
+              </div>
 
-            <div className="flex flex-col gap-2 md:items-end">
-              <p
-                className={
-                  preview
-                    ? "font-mono text-sm text-accent"
-                    : "font-mono text-sm text-red-400"
-                }
-              >
-                {preview
-                  ? "Ready for security analysis"
-                  : "Invalid transaction data"}
-              </p>
+              <div className="flex flex-col gap-2 md:items-end">
+                <p
+                  className={[
+                    "text-sm font-mono",
+                    preview
+                      ? "text-accent"
+                      : "text-red-400",
+                  ].join(" ")}
+                >
+                  {preview
+                    ? "✓ Ready for analysis"
+                    : "Invalid transaction data"}
+                </p>
 
-              <button
-                type="button"
-                onClick={() =>
-                  void handleAnalyzeRisk()
-                }
-                disabled={
-                  !preview ||
-                  isAnalyzingRisk
-                }
-                className="rounded-full border border-accent/40 bg-accent/10 px-4 py-2 text-sm font-medium text-accent hover:bg-accent/20 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {isAnalyzingRisk
-                  ? "Analyzing..."
-                  : "Analyze Risk"}
-              </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    void handleAnalyzeRisk()
+                  }
+                  disabled={
+                    !preview ||
+                    isAnalyzingRisk
+                  }
+                  className="rounded-lg border border-accent/40 bg-accent/10 px-5 py-2 text-sm font-semibold text-accent transition-all hover:bg-accent/20 hover:shadow-lg hover:shadow-accent/20 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:shadow-none"
+                >
+                  {isAnalyzingRisk
+                    ? "Analyzing..."
+                    : "Analyze Risk"}
+                </button>
+              </div>
             </div>
           </div>
 
-          <p className="mt-3 text-sm leading-6 text-muted">
-            This review is only a preview. No transaction
-            has been sent, signed, or submitted.
-          </p>
+          {/* Transaction Details */}
+          <div className="rounded-lg border border-border bg-background/40 p-5">
+            <dl className="grid gap-4 text-sm md:grid-cols-2">
+              <div>
+                <dt className="text-xs font-semibold uppercase tracking-wide text-muted">
+                  From
+                </dt>
+                <dd className="mt-2 break-all font-mono text-foreground">
+                  {preview?.from ??
+                    "Unavailable"}
+                </dd>
+              </div>
 
-          <dl className="mt-4 grid gap-3 text-sm">
-            <div>
-              <dt className="text-muted">
-                From address
-              </dt>
+              <div>
+                <dt className="text-xs font-semibold uppercase tracking-wide text-muted">
+                  To
+                </dt>
+                <dd className="mt-2 break-all font-mono text-foreground">
+                  {preview?.to ??
+                    "Enter a valid recipient"}
+                </dd>
+              </div>
 
-              <dd className="mt-1 break-all font-mono">
-                {preview?.from ??
-                  "Unavailable until valid"}
-              </dd>
-            </div>
+              <div>
+                <dt className="text-xs font-semibold uppercase tracking-wide text-muted">
+                  Amount
+                </dt>
+                <dd className="mt-2 font-mono text-foreground">
+                  {preview
+                    ? `${preview.amountBnb} BNB`
+                    : "Enter an amount"}
+                </dd>
+              </div>
 
-            <div>
-              <dt className="text-muted">
-                Recipient address
-              </dt>
+              <div>
+                <dt className="text-xs font-semibold uppercase tracking-wide text-muted">
+                  Asset
+                </dt>
+                <dd className="mt-2 font-mono text-foreground">
+                  {preview?.asset ??
+                    "native BNB"}
+                </dd>
+              </div>
 
-              <dd className="mt-1 break-all font-mono">
-                {preview?.to ??
-                  "Enter a valid recipient"}
-              </dd>
-            </div>
+              <div className="md:col-span-2">
+                <dt className="text-xs font-semibold uppercase tracking-wide text-muted">
+                  Network
+                </dt>
+                <dd className="mt-2 font-mono text-foreground">
+                  {preview
+                    ? `${preview.chainName} (${preview.chainId})`
+                    : chainName}
+                </dd>
+              </div>
+            </dl>
+          </div>
 
-            <div>
-              <dt className="text-muted">
-                Amount
-              </dt>
-
-              <dd className="mt-1 font-mono">
-                {preview
-                  ? `${preview.amountBnb} BNB`
-                  : "Enter a valid positive amount"}
-              </dd>
-            </div>
-
-            <div>
-              <dt className="text-muted">
-                Asset
-              </dt>
-
-              <dd className="mt-1 font-mono">
-                {preview?.asset ??
-                  "native BNB"}
-              </dd>
-            </div>
-
-            <div>
-              <dt className="text-muted">
-                Network
-              </dt>
-
-              <dd className="mt-1 font-mono">
-                {preview
-                  ? `${preview.chainName} (${preview.chainId})`
-                  : chainName}
-              </dd>
-            </div>
-          </dl>
-
-          {/* RISK ERROR */}
+          {/* Risk Error */}
           {riskError ? (
-            <p className="mt-4 text-sm text-red-400">
-              {riskError}
-            </p>
+            <div className="rounded-lg border border-red-400/30 bg-red-400/10 p-4">
+              <p className="text-sm text-red-400">
+                {riskError}
+              </p>
+            </div>
           ) : null}
 
           {/* AI ASSESSMENT */}
           {riskAssessment ? (
-            <div className="mt-5 rounded-lg border border-border bg-background/60 p-4">
-              <p className="text-sm font-medium text-accent">
-                AI-assisted risk assessment
-              </p>
+            <div className="mt-6 rounded-lg border border-accent/30 bg-accent/5 p-5">
+              {/* Header with Risk Score */}
+              <div className="mb-5">
+                <h3 className="text-base font-semibold text-foreground">
+                  AI Risk Assessment
+                </h3>
+                <p className="mt-1 text-xs text-muted">
+                  Powered by Gemini AI analysis
+                </p>
+              </div>
 
-              <div className="mt-4 grid gap-3 text-sm md:grid-cols-2">
+              {/* Risk Score Highlight */}
+              <div className="mb-5 flex items-center justify-between rounded-lg border border-accent/40 bg-accent/10 px-4 py-3">
                 <div>
-                  <p className="text-muted">
-                    Risk level
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+                    Risk Level
                   </p>
-
-                  <p className="mt-1 font-mono text-foreground">
+                  <p className="mt-1.5 text-lg font-bold text-accent">
                     {riskAssessment.riskLevel}
                   </p>
                 </div>
-
-                <div>
-                  <p className="text-muted">
-                    Risk score
+                <div className="text-right">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+                    Risk Score
                   </p>
-
-                  <p className="mt-1 font-mono text-foreground">
-                    {riskAssessment.score}/100
+                  <p className="mt-1.5 text-3xl font-bold text-accent">
+                    {riskAssessment.score}
                   </p>
+                  <p className="text-xs text-muted">/100</p>
                 </div>
               </div>
 
-              {/* SUMMARY */}
-              <p className="mt-4 text-sm leading-6 text-muted">
-                {riskAssessment.summary}
-              </p>
-
-              {/* REASONS */}
-              <div className="mt-4">
-                <p className="text-sm text-muted">
-                  Reasons
+              {/* Summary */}
+              <div className="mb-4">
+                <p className="text-sm leading-6 text-foreground">
+                  {riskAssessment.summary}
                 </p>
-
-                <ul className="mt-2 list-disc space-y-2 pl-5 text-sm leading-6">
-                  {riskAssessment.reasons.map(
-                    (reason) => (
-                      <li key={reason}>
-                        {reason}
-                      </li>
-                    ),
-                  )}
-                </ul>
               </div>
 
-              {/* RECOMMENDATION */}
-              <div className="mt-4">
-                <p className="text-sm text-muted">
+              {/* Reasons */}
+              {riskAssessment.reasons.length > 0 ? (
+                <div className="mb-4">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">
+                    Key Findings
+                  </p>
+                  <ul className="space-y-1.5 text-sm">
+                    {riskAssessment.reasons.map((reason) => (
+                      <li key={reason} className="flex gap-2 text-foreground">
+                        <span className="flex-shrink-0 text-accent">
+                          •
+                        </span>
+                        <span>{reason}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+
+              {/* Recommendation */}
+              <div className="mb-4 rounded-lg border border-border bg-background/40 p-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted">
                   Recommendation
                 </p>
-
-                <p className="mt-2 text-sm leading-6">
+                <p className="mt-2 text-sm text-foreground">
                   {riskAssessment.recommendation}
                 </p>
               </div>
 
-              <p className="mt-4 text-xs leading-5 text-muted">
-                This is an AI-assisted assessment, not a
-                safety guarantee. No transaction signing or
-                sending has been requested.
+              <p className="text-xs leading-5 text-muted">
+                This is an AI-assisted assessment, not a safety guarantee. Always verify transaction details carefully.
               </p>
 
-              {/* RECORD ASSESSMENT */}
-              <div className="mt-5 border-t border-border pt-4">
+              {/* RECORD ASSESSMENT SECTION */}
+              <div className="mt-5 border-t border-border pt-5">
+                <div className="mb-4">
+                  <h4 className="font-semibold text-foreground">
+                    Record Assessment
+                  </h4>
+                  <p className="mt-1 text-xs text-muted">
+                    Save this assessment to the blockchain
+                  </p>
+                </div>
+
                 <button
                   type="button"
                   onClick={
@@ -1082,77 +1096,91 @@ export default function TransactionBuilder() {
                     currentAssessmentTransactionStatus === "pending" ||
                     currentAssessmentTransactionStatus === "confirmed"
                   }
-                  className="rounded-full border border-accent/40 bg-accent/10 px-4 py-2 text-sm font-medium text-accent hover:bg-accent/20 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="w-full rounded-lg border border-accent/40 bg-accent/10 px-5 py-2.5 text-sm font-semibold text-accent transition-all hover:bg-accent/20 hover:shadow-lg hover:shadow-accent/20 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:shadow-none"
                 >
                   {isRecordingAssessment
-                    ? "Confirm in wallet..."
+                    ? "Confirming in wallet..."
                     : currentAssessmentTransactionStatus === "pending"
-                      ? "Confirming..."
+                      ? "Recording on-chain..."
                       : currentAssessmentTransactionStatus === "confirmed"
-                        ? "Assessment recorded"
+                        ? "✓ Assessment recorded"
                         : "Record Assessment"}
                 </button>
 
-                {/* NOT CONNECTED */}
-                {!isConnected ? (
-                  <p className="mt-3 text-sm text-red-400">
-                    Connect your wallet to record this
-                    assessment.
-                  </p>
-                ) : chainId !== GUARDIAN_CHAIN_ID ? (
-                  <p className="mt-3 text-sm text-red-400">
-                    Switch to BNB Smart Chain Testnet
-                    (chain ID 97) to record this
-                    assessment.
-                  </p>
-                ) : null}
+                {/* WALLET WARNINGS */}
+                <div className="mt-3 space-y-2">
+                  {!isConnected ? (
+                    <div className="rounded-lg border border-red-400/30 bg-red-400/10 p-3">
+                      <p className="text-xs text-red-400">
+                        Connect your wallet to record this assessment.
+                      </p>
+                    </div>
+                  ) : null}
 
-                {/* TRANSACTION HASH */}
-                {assessmentTransactionHash ? (
-                  <p className="mt-3 break-all text-sm text-muted">
-                    Transaction hash:{" "}
-                    <span className="font-mono">
-                      {assessmentTransactionHash}
-                    </span>
-                  </p>
-                ) : null}
+                  {isConnected && chainId !== GUARDIAN_CHAIN_ID ? (
+                    <div className="rounded-lg border border-red-400/30 bg-red-400/10 p-3">
+                      <p className="text-xs text-red-400">
+                        Switch to BNB Smart Chain Testnet (chain ID 97) to record this assessment.
+                      </p>
+                    </div>
+                  ) : null}
+                </div>
 
-                {/* CONFIRMED */}
-                {currentAssessmentTransactionStatus === "confirmed" ? (
-                  <div className="mt-3 space-y-2 text-sm text-accent">
-                    <p>
-                      ✓ Assessment recorded on-chain
-                    </p>
+                {/* TRANSACTION STATUS */}
+                {currentAssessmentTransactionStatus === "confirmed" && assessmentTransactionHash ? (
+                  <div className="mt-4 rounded-lg border border-accent/30 bg-accent/5 p-4">
+                    <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-accent">
+                      <span>✓</span>
+                      <span>Assessment recorded on-chain</span>
+                    </div>
 
-                    <p>
-                      Transaction confirmed successfully.
-                    </p>
+                    <div className="space-y-3 text-xs">
+                      <div>
+                        <p className="text-muted">Transaction hash:</p>
+                        <p className="mt-1 break-all font-mono text-foreground">
+                          {assessmentTransactionHash}
+                        </p>
+                      </div>
 
-                    {assessmentTransactionHash ? (
                       <a
                         href={`https://testnet.bscscan.com/tx/${assessmentTransactionHash}`}
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-block underline underline-offset-4 hover:text-foreground"
+                        className="inline-flex items-center gap-1 text-accent transition-colors hover:text-foreground"
                       >
-                        View on BscScan
+                        View on BscScan →
                       </a>
-                    ) : null}
+                    </div>
                   </div>
                 ) : null}
 
-                {/* SAVE ERROR */}
-                {recordError ||
+                {/* PENDING STATE */}
+                {currentAssessmentTransactionStatus === "pending" && assessmentTransactionHash ? (
+                  <div className="mt-4 rounded-lg border border-accent/30 bg-accent/5 p-4">
+                    <p className="flex items-center gap-2 text-sm text-foreground">
+                      <span className="inline-block h-2 w-2 rounded-full bg-accent animate-pulse" />
+                      Recording assessment on-chain...
+                    </p>
+                    <p className="mt-2 break-all font-mono text-xs text-muted">
+                      {assessmentTransactionHash}
+                    </p>
+                  </div>
+                ) : null}
+
+                {/* ERROR STATE */}
+                {(recordError ||
                   writeError ||
                   isConfirmationError ||
-                  currentAssessmentTransactionStatus === "failed" ? (
-                  <p className="mt-3 text-sm text-red-400">
-                    {recordError ||
-                      getWalletErrorMessage(
-                        writeError ??
-                        confirmationError,
-                      )}
-                  </p>
+                  currentAssessmentTransactionStatus === "failed") ? (
+                  <div className="mt-4 rounded-lg border border-red-400/30 bg-red-400/10 p-4">
+                    <p className="text-xs text-red-400">
+                      {recordError ||
+                        getWalletErrorMessage(
+                          writeError ??
+                          confirmationError,
+                        )}
+                    </p>
+                  </div>
                 ) : null}
               </div>
             </div>
