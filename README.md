@@ -64,7 +64,7 @@ Users can configure application preferences such as risk alert thresholds, revie
 
 ## Live Demo
 
-[**Web3 Guardian — Live Demo**](https://YOUR-VERCEL-DOMAIN.vercel.app)
+[**Web3 Guardian — Live Demo**](https://web3guardian.vercel.app/)
 
 ## Web Preview
 
