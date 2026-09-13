@@ -25,6 +25,10 @@ app.get("/health", (_req, res) => {
 app.use("/api/contacts", contactsRouter);
 app.use("/api/assessments", assessmentsRouter);
 
-app.listen(PORT, () => {
-    console.log(`Web3 Guardian API running on http://localhost:${PORT}`);
-});
+if (!process.env.VERCEL) {
+    app.listen(PORT, () => {
+        console.log(`Web3 Guardian API running on http://localhost:${PORT}`);
+    });
+}
+
+export default app;
