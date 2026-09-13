@@ -99,92 +99,67 @@ router.post("/", async (req, res) => {
             });
         }
 
-        if (!Number.isInteger(Number(chainId))) {
+        const chainIdNum = Number(chainId);
+        if (!Number.isInteger(chainIdNum) || chainIdNum < 0 || chainIdNum > 2147483647) {
             return res.status(400).json({
                 error: "Valid chainId is required",
             });
         }
 
+        const riskScoreNum = riskScore !== undefined && riskScore !== null ? Number(riskScore) : null;
         if (
-            riskScore !== undefined &&
-            riskScore !== null &&
-            !Number.isInteger(Number(riskScore))
+            riskScoreNum !== null &&
+            (!Number.isInteger(riskScoreNum) || riskScoreNum < 0 || riskScoreNum > 100)
         ) {
             return res.status(400).json({
-                error: "riskScore must be an integer",
+                error: "riskScore must be an integer between 0 and 100",
             });
         }
 
-        if (
-            blockNumber !== undefined &&
-            blockNumber !== null &&
-            !Number.isInteger(Number(blockNumber))
-        ) {
+        const blockNumberNum = blockNumber !== undefined && blockNumber !== null ? Number(blockNumber) : null;
+        if (blockNumberNum !== null && (!Number.isInteger(blockNumberNum) || blockNumberNum < 0)) {
             return res.status(400).json({
-                error: "blockNumber must be an integer",
+                error: "blockNumber must be a non-negative integer",
             });
         }
+
+        const validateFieldLength = (value: string, maxLen: number): string | null => {
+            const trimmed = value?.trim?.();
+            return trimmed && trimmed.length > 0 && trimmed.length <= maxLen ? trimmed : null;
+        };
 
         const normalizedTransactionId =
-            typeof transactionId === "string" && transactionId.trim() !== ""
-                ? transactionId.trim()
-                : typeof analysis === "object" &&
-                    analysis !== null &&
-                    "transactionId" in analysis &&
-                    typeof analysis.transactionId === "string" &&
-                    analysis.transactionId.trim() !== ""
-                    ? analysis.transactionId.trim()
-                    : typeof transactionHash === "string"
-                        ? transactionHash.trim()
-                        : "unknown";
+            validateFieldLength(String(transactionId), 256)
+            || validateFieldLength(typeof analysis?.transactionId === "string" ? analysis.transactionId : "", 256)
+            || validateFieldLength(String(transactionHash), 256)
+            || "unknown";
+
+        const validRiskLevels = ["LOW", "MEDIUM", "HIGH", "UNKNOWN"];
+        const normalizedRiskLevel = typeof riskLevel === "string" && validRiskLevels.includes(riskLevel.toUpperCase())
+            ? riskLevel.toUpperCase()
+            : "UNKNOWN";
+
+        const aiSummary = typeof summary === "string" ? summary.trim().substring(0, 2000) : "";
+        const txHash = typeof transactionHash === "string" ? transactionHash.trim().substring(0, 256) : null;
 
         const { data, error } = await supabase
             .from("assessments")
             .insert({
                 wallet_address: walletAddress,
                 transaction_id: normalizedTransactionId,
-
-                tx_hash:
-                    typeof transactionHash === "string"
-                        ? transactionHash.trim()
-                        : null,
-
-                chain_id: Number(chainId),
-
-                block_number:
-                    blockNumber === undefined || blockNumber === null
-                        ? null
-                        : Number(blockNumber),
-
-                risk_score:
-                    riskScore === undefined || riskScore === null
-                        ? 0
-                        : Number(riskScore),
-
-                risk_level:
-                    typeof riskLevel === "string"
-                        ? riskLevel.trim()
-                        : "UNKNOWN",
-
-                ai_summary:
-                    typeof summary === "string"
-                        ? summary.trim()
-                        : "",
-
-                ai_reasons: Array.isArray(findings)
-                    ? findings
-                    : [],
-
+                tx_hash: txHash,
+                chain_id: chainIdNum,
+                block_number: blockNumberNum,
+                risk_score: riskScoreNum ?? 0,
+                risk_level: normalizedRiskLevel,
+                ai_summary: aiSummary,
+                ai_reasons: Array.isArray(findings) ? findings : [],
                 recommendation: Array.isArray(recommendations)
-                    ? recommendations.join("\n")
+                    ? recommendations.join("\n").substring(0, 5000)
                     : typeof recommendations === "string"
-                        ? recommendations
+                        ? recommendations.substring(0, 5000)
                         : "",
-
-                analysis:
-                    analysis !== undefined
-                        ? analysis
-                        : null,
+                analysis: analysis !== undefined ? analysis : null,
             })
             .select()
             .single();
@@ -209,10 +184,14 @@ router.post("/", async (req, res) => {
 
 /**
  * GET /api/assessments/:id
+ * Requires walletAddress query/body parameter to verify ownership.
  */
 router.get("/:id", async (req, res) => {
     try {
         const id = req.params.id;
+        const walletAddress = String(
+            req.query.walletAddress ?? req.body?.walletAddress ?? "",
+        ).trim();
 
         if (!id) {
             return res.status(400).json({
@@ -220,15 +199,21 @@ router.get("/:id", async (req, res) => {
             });
         }
 
+        if (!isAddress(walletAddress)) {
+            return res.status(400).json({
+                error: "Valid walletAddress is required",
+            });
+        }
+
         const { data, error } = await supabase
             .from("assessments")
             .select("*")
             .eq("id", id)
+            .eq("wallet_address", walletAddress)
             .single();
 
         if (error) {
             console.error("Failed to load assessment:", error);
-
             return res.status(404).json({
                 error: "Assessment not found",
             });
@@ -237,7 +222,6 @@ router.get("/:id", async (req, res) => {
         return res.json(data);
     } catch (error) {
         console.error("Unexpected assessment detail error:", error);
-
         return res.status(500).json({
             error: "Internal server error",
         });
@@ -246,10 +230,14 @@ router.get("/:id", async (req, res) => {
 
 /**
  * DELETE /api/assessments/:id
+ * Requires walletAddress query/body parameter to verify ownership.
  */
 router.delete("/:id", async (req, res) => {
     try {
         const id = req.params.id;
+        const walletAddress = String(
+            req.body?.walletAddress ?? req.query.walletAddress ?? "",
+        ).trim();
 
         if (!id) {
             return res.status(400).json({
@@ -257,14 +245,45 @@ router.delete("/:id", async (req, res) => {
             });
         }
 
+        if (!isAddress(walletAddress)) {
+            return res.status(400).json({
+                error: "Valid walletAddress is required",
+            });
+        }
+
+        const { data: existingAssessment, error: existingError } = await supabase
+            .from("assessments")
+            .select("id, wallet_address")
+            .eq("id", id)
+            .maybeSingle();
+
+        if (existingError) {
+            console.error("Failed to load assessment for deletion:", existingError);
+            return res.status(500).json({
+                error: "Failed to delete assessment",
+            });
+        }
+
+        if (!existingAssessment) {
+            return res.status(404).json({
+                error: "Assessment not found",
+            });
+        }
+
+        if (existingAssessment.wallet_address.toLowerCase() !== walletAddress.toLowerCase()) {
+            return res.status(403).json({
+                error: "Assessment does not belong to this wallet",
+            });
+        }
+
         const { error } = await supabase
             .from("assessments")
             .delete()
-            .eq("id", id);
+            .eq("id", id)
+            .eq("wallet_address", walletAddress);
 
         if (error) {
             console.error("Failed to delete assessment:", error);
-
             return res.status(500).json({
                 error: "Failed to delete assessment",
             });
@@ -273,7 +292,6 @@ router.delete("/:id", async (req, res) => {
         return res.status(204).send();
     } catch (error) {
         console.error("Unexpected assessment delete error:", error);
-
         return res.status(500).json({
             error: "Internal server error",
         });

@@ -122,7 +122,7 @@ export default function Page() {
           </div>
           <div className="flex items-center gap-3">
             <Link
-              href="/analyze"
+              href="/dashboard"
               className="rounded-full border border-accent/50 bg-accent px-4 py-2 text-sm font-semibold text-background transition-colors hover:bg-cyan-300"
             >
               Launch App <Arrow />
@@ -157,7 +157,7 @@ export default function Page() {
             </p>
             <div className="mt-9 flex flex-col gap-3 sm:flex-row">
               <Link
-                href="/analyze"
+                href="/dashboard"
                 className="inline-flex min-h-12 items-center justify-center rounded-lg bg-accent px-6 text-sm font-semibold text-background transition-colors hover:bg-cyan-300"
               >
                 Launch Web3 Guardian{" "}
@@ -416,7 +416,7 @@ export default function Page() {
             </p>
             <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
               <Link
-                href="/analyze"
+                href="/dashboard"
                 className="inline-flex min-h-12 items-center justify-center rounded-lg bg-accent px-6 text-sm font-semibold text-background hover:bg-cyan-300"
               >
                 Launch Web3 Guardian{" "}

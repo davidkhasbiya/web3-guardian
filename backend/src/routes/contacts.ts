@@ -23,13 +23,16 @@ function normalizeWalletAddress(value: unknown) {
     return isAddress(trimmed) ? trimmed : null;
 }
 
-function normalizeText(value: unknown) {
+function normalizeText(value: unknown, maxLength: number = 500) {
     if (typeof value !== "string") {
         return null;
     }
 
     const trimmed = value.trim();
-    return trimmed === "" ? null : trimmed;
+    if (trimmed === "" || trimmed.length > maxLength) {
+        return null;
+    }
+    return trimmed;
 }
 
 function normalizeContactRow(row: ContactRow) {
@@ -80,9 +83,9 @@ router.post("/", async (req, res) => {
     try {
         const payload = req.body ?? {};
         const walletAddress = normalizeWalletAddress(payload.walletAddress);
-        const name = normalizeText(payload.name);
+        const name = normalizeText(payload.name, 100);
         const providedAddress = normalizeWalletAddress(payload.address ?? payload.contactAddress);
-        const note = normalizeText(payload.note);
+        const note = normalizeText(payload.note, 500);
 
         if (!walletAddress) {
             return res.status(400).json({
@@ -92,7 +95,7 @@ router.post("/", async (req, res) => {
 
         if (!name) {
             return res.status(400).json({
-                error: "Contact name is required",
+                error: "Contact name must be 1-100 characters",
             });
         }
 
@@ -175,10 +178,10 @@ router.put("/:id", async (req, res) => {
 
         const updates: Record<string, string | null> = {};
         if (Object.prototype.hasOwnProperty.call(payload, "name")) {
-            const nextName = normalizeText(payload.name);
+            const nextName = normalizeText(payload.name, 100);
             if (nextName === null) {
                 return res.status(400).json({
-                    error: "Contact name is invalid",
+                    error: "Contact name must be 1-100 characters",
                 });
             }
             updates.name = nextName;
@@ -197,7 +200,12 @@ router.put("/:id", async (req, res) => {
         if (Object.prototype.hasOwnProperty.call(payload, "note")) {
             const nextNote = payload.note === null || payload.note === undefined
                 ? null
-                : normalizeText(payload.note);
+                : normalizeText(payload.note, 500);
+            if (nextNote !== null && nextNote.length > 500) {
+                return res.status(400).json({
+                    error: "Note must be 0-500 characters",
+                });
+            }
             updates.note = nextNote;
         }
 
